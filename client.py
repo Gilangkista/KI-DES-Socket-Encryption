@@ -1,11 +1,12 @@
 import socket
-from des import string_to_hex, hex2bin, bin2hex, encrypt, shift_left, permute
+from DES import string_to_hex, hex2bin, bin2hex, encrypt, shift_left, permute, pad_input
 
 def main():
     host = 'localhost'
     port = 12345
 
     pt = input("Enter the plain text: ")
+    pt = pad_input(pt)
     temp = string_to_hex(pt)
     print("In hex:", temp)
 

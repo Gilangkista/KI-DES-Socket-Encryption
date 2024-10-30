@@ -1,5 +1,5 @@
 import socket
-from des import encrypt, bin2hex, hex_to_string
+from DES import encrypt, bin2hex, hex_to_string
 
 def reverse_round_keys(rkb, rk):
     rkb.reverse()

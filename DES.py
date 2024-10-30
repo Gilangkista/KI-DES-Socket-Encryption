@@ -2,10 +2,15 @@ def hex_to_string(hex_str):
     bytes_object = bytes.fromhex(hex_str)
     return bytes_object.decode('utf-8')
 
+def pad_input(input_str):
+    while len(input_str) < 8:
+        input_str += ' '  # Bisa juga diganti dengan karakter lain
+    return input_str
+
 def string_to_hex(s):
-    hex_values = [hex(ord(char))[2:] for char in s]
-    temp = ''.join(hex_values)
-    return temp.upper()
+	hex_values = [hex(ord(char))[2:] for char in s]
+	temp = ''.join(hex_values)
+	return temp.upper()
 
 # Hexadecimal to binary conversion
 def hex2bin(s):
@@ -191,7 +196,10 @@ final_perm = [40, 8, 48, 16, 56, 24, 64, 32,
 			33, 1, 41, 9, 49, 17, 57, 25]
 
 
+
+
 def encrypt(temp, rkb, rk):
+
 	temp = hex2bin(temp)
 
 	# Initial Permutation
