@@ -1,8 +1,9 @@
+import json
 import socket
 import threading
 from DES import string_to_hex, hex2bin, bin2hex, encrypt, pad_input, round, des_encrypt_block,split_into_blocks,hex_to_string
 from rsa import primefiller,setkeys,encoder,decrypt,decoder
-keyraw = 'AABB09182736CCDD'
+keyraw = "AABB09182736CCDD"
 prime = set()
 prime = primefiller(prime)
 public_key,secret_key=setkeys(prime)
@@ -41,25 +42,30 @@ def receive():
                 print(message)
 
             elif ":" in message:
+                # client.recv(1024).decode('ascii')
                 rkb_rev = rkb[::-1]
-                rk_rev = rk[::-1]
                 
                 # rev_rkb = rev_rkb.reverse()
                 # print(rkb)
                 # decoded_msg=''
                 temp = message
-                part = temp.split(": ",1)
-                part2 = part[1].split('with encoded key: ',1)
+                # part = temp.split(" ",1)
+                part2 = temp.split('with encoded key: ',1)
+                part1 = part2[0].split(': ')
                 
                     # print("cipher blok")
-                print(part2[1])
                 # decoded_des_key = decoder(part2[1],secret_key)
+
+# Decode the encoded key
+                decoded_des_key = decoder(json.loads(part2[1]), secret_key)
                 # decoded_des_key = decoder(part2[1],secret_key)
-                
                 # rk,rkb = round(decoded_des_key)
-                # cipher_blok = hex_to_string(bin2hex(encrypt(part[1], rkb_rev, rk_rev)))
-                # temp = '{}: {}'.format(part[0], cipher_blok)
-                # print(decoded_des_key)
+                # rk_rev = rk[::-1]
+                # print(part1[1])
+                
+                # cipher_blok = (encrypt(part1[1], rkb_rev, rk_rev))
+                # temp = '{}: {}'.format(part1[0], cipher_blok)
+                print(decoded_des_key)
 
             
             else:
