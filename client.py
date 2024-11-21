@@ -43,7 +43,6 @@ def receive():
 
             elif ":" in message:
                 # client.recv(1024).decode('ascii')
-                rkb_rev = rkb[::-1]
                 
                 # rev_rkb = rev_rkb.reverse()
                 # print(rkb)
@@ -58,14 +57,22 @@ def receive():
 
 # Decode the encoded key
                 decoded_des_key = decoder(json.loads(part2[1]), secret_key)
+                # des_key_bytes = decoded_des_key.encode('utf-8')  # Mengonversi string menjadi byte
+
                 # decoded_des_key = decoder(part2[1],secret_key)
-                # rk,rkb = round(decoded_des_key)
-                # rk_rev = rk[::-1]
-                # print(part1[1])
-                
-                # cipher_blok = (encrypt(part1[1], rkb_rev, rk_rev))
-                # temp = '{}: {}'.format(part1[0], cipher_blok)
-                print(decoded_des_key)
+                print(part1[1])
+                key_des = string_to_hex(decoded_des_key)
+                key_des = hex2bin(key_des)
+                rk,rkb = round(key_des)
+                rkb_rev = rkb[::-1]
+                rk_rev = rk[::-1]
+                part1[1] = string_to_hex(part1[1])
+                print(part1[1])
+                cipher_blok = encrypt(part1[1], rkb, rk)
+                hasil = bin2hex(cipher_blok)
+                # hasil = hex_to_string(hasil)
+                # temp = '{}: {}'.format(part1[0], hasil)
+                print('hasil',hasil)
 
             
             else:
