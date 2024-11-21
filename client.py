@@ -53,13 +53,13 @@ def receive():
                 
                     # print("cipher blok")
                 print(part2[1])
-                decoded_des_key = decoder(int(part2[1]),secret_key)
+                # decoded_des_key = decoder(part2[1],secret_key)
                 # decoded_des_key = decoder(part2[1],secret_key)
                 
                 # rk,rkb = round(decoded_des_key)
                 # cipher_blok = hex_to_string(bin2hex(encrypt(part[1], rkb_rev, rk_rev)))
                 # temp = '{}: {}'.format(part[0], cipher_blok)
-                print(decoded_des_key)
+                # print(decoded_des_key)
 
             
             else:
@@ -92,6 +92,7 @@ def write():
                     blok = pad_input(blok)
                     cipher_blok = des_encrypt_block(blok, rkb, rk)
                     encoded_message += cipher_blok
+                print(public_key)
                 encoded_des_key = encoder(keyraw,public_key)
                 message = '{}: {} with encoded key: {}'.format(nickname, encoded_message,encoded_des_key)
                 # print(encoded_des_key)
