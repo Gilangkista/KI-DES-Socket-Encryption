@@ -1,48 +1,62 @@
 import socket
-from DES import encrypt, bin2hex, hex_to_string
+import threading
 
-def reverse_round_keys(rkb, rk):
-    rkb.reverse()
-    rk.reverse()
-    return rkb, rk
+# Connection Data
+host = '127.0.0.1'
+port = 55555
 
-def main():
-    host = 'localhost'
-    port = 12345
+# Starting Server
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind((host, port))
+server.listen()
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((host, port))
-        s.listen(1)
-        print("Waiting for connection...")
+# Lists For Clients and Their Nicknames
+clients = []
+nicknames = []
 
-        conn, addr = s.accept()
-        with conn:
-            print(f"Connected by {addr}")
+# Sending Messages To All Connected Clients
+def broadcast(message):
+    for client in clients:
+        client.send(message)
 
-            #Terima cipher text dari client
-            cipher_text = conn.recv(1024).decode()
-            print("Received Cipher Text:", cipher_text)
+# Handling Messages From Clients
+def handle(client):
+    while True:
+        try:
+            # Broadcasting Messages
+            message = client.recv(1024)
+            broadcast(message)
+        except:
+            # Removing And Closing Clients
+            index = clients.index(client)
+            clients.remove(client)
+            client.close()
+            nickname = nicknames[index]
+            broadcast('{} left!'.format(nickname).encode('ascii'))
+            nicknames.remove(nickname)
+            break
 
-            #pisahkan rkb dan rk yang diterima sebagai string
-            round_keys_data = conn.recv(4096).decode()
-            rkb_str, rk_str = round_keys_data.split('|')
+# Receiving / Listening Function
+def receive():
+    while True:
+        # Accept Connection
+        client, address = server.accept()
+        print("Connected with {}".format(str(address)))
 
-            # Convert to list
-            rkb = eval(rkb_str)
-            rk = eval(rk_str)
+        # Request And Store Nickname
+        client.send('NICK'.encode('ascii'))
+        nickname = client.recv(1024).decode('ascii')
+        nicknames.append(nickname)
+        clients.append(client)
 
-            # Balik urutan round keys untuk proses dekripsi (16 ke 1)
-            rkb, rk = reverse_round_keys(rkb, rk)
+        # Print And Broadcast Nickname
+        print("Nickname is {}".format(nickname))
+        broadcast("{} joined!".format(nickname).encode('ascii'))
+        client.send('Connected to server!'.encode('ascii'))
 
-            print("Decryption in Progress...")
-            decrypted_bin = encrypt(cipher_text, rkb, rk)
-            decrypted_text = bin2hex(decrypted_bin)
-            string_text = hex_to_string(decrypted_text)
+        # Start Handling Thread For Client
+        thread = threading.Thread(target=handle, args=(client,))
+        thread.start()
+        
 
-            print("Final Decrypted Text (Hex):", decrypted_text)
-            print("Final Decrypted Text (String):", string_text)
-            print("Decryption process complete.")
-
-
-if __name__ == "__main__":
-    main()
+receive()
