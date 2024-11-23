@@ -68,8 +68,9 @@ def receive():
                 rk_rev = rk[::-1]
                 part1[1] = string_to_hex(part1[1])
                 print(part1[1])
-                cipher_blok = encrypt(part1[1], rkb, rk)
+                cipher_blok = encrypt(part1[1], rkb_rev, rk_rev)
                 hasil = bin2hex(cipher_blok)
+                # hasil = hex_to_string(hasil)
                 # hasil = hex_to_string(hasil)
                 # temp = '{}: {}'.format(part1[0], hasil)
                 print('hasil',hasil)

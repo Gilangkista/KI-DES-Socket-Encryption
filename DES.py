@@ -1,6 +1,14 @@
+def des_encrypt_block(block, rkb, rk):
+	block_hex = string_to_hex(block)
+	return bin2hex(encrypt(block_hex, rkb, rk))
+
+def split_into_blocks(text, block_size=8):
+	arr = [text[i:i + block_size] for i in range(0, len(text), block_size)]
+	
+	return arr
+
 def hex_to_string(hex_str):
-    bytes_object = bytes.fromhex(hex_str)
-    return bytes_object.decode('utf-8')
+    return bytes.fromhex(hex_str).decode('ascii')
 
 def pad_input(input_str):
     while len(input_str) < 8:
@@ -196,21 +204,50 @@ final_perm = [40, 8, 48, 16, 56, 24, 64, 32,
 			33, 1, 41, 9, 49, 17, 57, 25]
 
 
+shift_table = [1, 1, 2, 2,
+               2, 2, 2, 2,
+               1, 2, 2, 2,
+               2, 2, 2, 1]
+
+key_comp = [14, 17, 11, 24, 1, 5,
+                3, 28, 15, 6, 21, 10,
+                23, 19, 12, 4, 26, 8,
+                16, 7, 27, 20, 13, 2,
+                41, 52, 31, 37, 47, 55,
+                30, 40, 51, 45, 33, 48,
+                44, 49, 39, 56, 34, 53,
+                46, 42, 50, 36, 29, 32]
+
+
+rkb = []
+rk = []
+def round(key):
+	left = key[0:28]
+	right = key[28:56]
+	
+	for i in range(0, 16):
+		left = shift_left(left, shift_table[i])
+		right = shift_left(right, shift_table[i])
+		combine_str = left + right
+		round_key = permute(combine_str, key_comp, 48)
+		rkb.append(round_key)
+		rk.append(bin2hex(round_key))
+	return rk,rkb
 
 
 def encrypt(temp, rkb, rk):
-
+	# print(temp)
 	temp = hex2bin(temp)
 
 	# Initial Permutation
 	temp = permute(temp, initial_perm, 64)
-	print("After initial permutation", bin2hex(temp))
+	# print(temp)
+	# print("After initial permutation", bin2hex(temp))
 
 	# Splitting
 	left = temp[0:32]
 	right = temp[32:64]
 	for i in range(0, 16):
-		# Expansion D-box: Expanding the 32 bits data into 48 bits
 		right_expanded = permute(right, exp_d, 48)
 
 		# XOR RoundKey[i] and right_expanded
@@ -235,8 +272,8 @@ def encrypt(temp, rkb, rk):
 		# Swapper
 		if(i != 15):
 			left, right = right, left
-		print("Round ", i + 1, " ", bin2hex(left),
-			" ", bin2hex(right), " ", rk[i])
+		# print("Round ", i + 1, " ", bin2hex(left),
+		# 	" ", bin2hex(right), " ", rk[i])
 
 	# Combination
 	combine = left + right
