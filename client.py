@@ -1,131 +1,124 @@
-import json
 import socket
 import threading
-from DES import string_to_hex, hex2bin, bin2hex, encrypt, pad_input, round, des_encrypt_block,split_into_blocks,hex_to_string
-from rsa import primefiller,setkeys,encoder,decrypt,decoder
-keyraw = "AABB09182736CCDD"
-prime = set()
-prime = primefiller(prime)
-public_key,secret_key=setkeys(prime)
-print("p_key = ", public_key)
-key = string_to_hex(keyraw)
-key = hex2bin(key)
-rk,rkb = round(key)
+import json
+import sys
+import random
+import string
+from rsa import rsa_encrypt, rsa_decrypt, rsa_sign, rsa_verify, rsa_generate_keys
+from des import encrypt_text, decrypt_text
 
-# print(rkb)
+chat_host = '127.0.0.1'
+chat_port = 55555
 
-# Choosing Nickname
-nickname = input("Choose your nickname: ")
+pka_host = '127.0.0.1'
+pka_port = 55556
 
+nickname = input("Enter your nickname: ")
 
-# Connecting To Server
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client.connect(('127.0.0.1', 55555))
+my_publicKey, my_privateKey = rsa_generate_keys(bits=2048)
 
-# Listening to Server and Sending Nickname
+chat_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+chat_socket.connect((chat_host, chat_port))
+
+def generate_des_key(length=8):
+    if length > 8:
+        raise ValueError("Length cannot be more than 8 characters.")
+    # Generate a random hexadecimal key
+    return ''.join(random.choices('0123456789ABCDEF', k=length))
+
+def do_format(secretKey, message, sender, signature):
+    full_message = f"{secretKey};{message}|{sender}?{signature}"
+    return full_message
+
+def register_with_pka(my_name, my_publicKey):
+    pka_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    pka_socket.connect((pka_host, pka_port))
+    key = json.dumps(my_publicKey)
+    packet = f"REGISTER:{my_name};{key}"
+    pka_socket.send(packet.encode('utf-8'))
+    response = pka_socket.recv(1024).decode('utf-8')
+    pka_socket.close()
+    return response
+
+def get_public_key_from_pka(their_name):
+    pka_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    pka_socket.connect((pka_host, pka_port))
+    packet = f"REQUEST:{their_name}"
+    pka_socket.send(packet.encode('utf-8'))
+    response = pka_socket.recv(1024).decode('utf-8')
+    if response == "nf":
+        print(f"User {their_name} not found")
+    else:
+        response = tuple(json.loads(response))
+    pka_socket.close()
+    return response
+
 def receive():
     while True:
         try:
-            # Receive Message From Server
-            # If 'NICK' Send Nickname
-            message = client.recv(1024).decode('ascii')
-            # print(message)
-            if message == 'NICK':
-                client.send(nickname.encode('ascii'))
-            
-            elif "penerima" in message:
-                user = message.split('= ',1)
-                if nickname == user[1]:
-                    # public_key = str(public_key)
-                    pesan = 'public_key = {}'.format(public_key)
-                    client.send(pesan.encode('ascii')) 
-                print(message)
-
-            elif ":" in message:
-                # client.recv(1024).decode('ascii')
-                
-                # rev_rkb = rev_rkb.reverse()
-                # print(rkb)
-                # decoded_msg=''
-                temp = message
-                # part = temp.split(" ",1)
-                part2 = temp.split('with encoded key: ',1)
-                part1 = part2[0].split(': ')
-                
-                    # print("cipher blok")
-                # decoded_des_key = decoder(part2[1],secret_key)
-
-# Decode the encoded key
-                decoded_des_key = decoder(json.loads(part2[1]), secret_key)
-                # des_key_bytes = decoded_des_key.encode('utf-8')  # Mengonversi string menjadi byte
-
-                # decoded_des_key = decoder(part2[1],secret_key)
-                print(part1[1])
-                key_des = string_to_hex(decoded_des_key)
-                key_des = hex2bin(key_des)
-                rk,rkb = round(key_des)
-                rkb_rev = rkb[::-1]
-                rk_rev = rk[::-1]
-                part1[1] = string_to_hex(part1[1])
-                print(part1[1])
-                cipher_blok = encrypt(part1[1], rkb_rev, rk_rev)
-                hasil = bin2hex(cipher_blok)
-                # hasil = hex_to_string(hasil)
-                # hasil = hex_to_string(hasil)
-                # temp = '{}: {}'.format(part1[0], hasil)
-                print('hasil',hasil)
-
-            
-            else:
-                # part = message.split("\n",1)
-                print(message)
+            message_package = chat_socket.recv(4096).decode('utf-8')
+            if ":" in message_package:
+                msg_type, content1 = message_package.split(":", 1)
+                if msg_type == "system":
+                    print(content1)
+                elif msg_type == "user":
+                    if ";" in content1:
+                        encrypted_desKey, content2 = content1.split(";", 1)
+                        if "|" in content2:
+                            encrypted_message, content3 = content2.split("|", 1)
+                            sender_name, signature = content3.split("?", 1)
+                            try:
+                                their_publicKey = get_public_key_from_pka(sender_name)
+                                decrypted_desKey = rsa_decrypt(my_privateKey, encrypted_desKey)
+                                if rsa_verify(their_publicKey, decrypted_desKey, signature):
+                                    decrypted_message = decrypt_text(encrypted_message, decrypted_desKey)
+                                    print(f"Decrypted Message from {sender_name}: {decrypted_message}")
+                                else:
+                                    print(f"Signature verification failed for {sender_name}'s message.")
+                            except:
+                                print("Error in decrypting message.")
         except:
-            # Close Connection When Error
-            
-            print()
-            client.close()
             break
 
-# Sending Messages To Server
 def write():
-    global client
-    encoded_message = ''
-    try:
-        while True:
-            try:
-                kirim = input()
-                kemana = 'penerima = {}'.format(kirim)
-                client.send(kemana.encode('ascii'))
-                user_inp = input()
-                if user_inp == "END" or kirim == "END":
-                    client.close()
-                    print("Koneksi ditutup oleh pengguna.")
-                    break
-                message_blok = split_into_blocks(user_inp)
-                for blok in message_blok:
-                    blok = pad_input(blok)
-                    cipher_blok = des_encrypt_block(blok, rkb, rk)
-                    encoded_message += cipher_blok
-                print(public_key)
-                encoded_des_key = encoder(keyraw,public_key)
-                message = '{}: {} with encoded key: {}'.format(nickname, encoded_message,encoded_des_key)
-                # print(encoded_des_key)
-                client.send(message.encode('ascii'))
-                encoded_message = ''
-            except EOFError:
-                print("EOFError: Input dihentikan.")
-                break
-    except Exception as e:
-        print(f"Error dalam thread write: {e}")
-    finally:
-        client.close()
+    while True:
+        try:
+            their_name = input("Who to send?: ").strip()
+            if not their_name:
+                print("Recipient name cannot be empty.")
+                continue
+            
+            their_publicKey = get_public_key_from_pka(their_name)
+            if their_publicKey == "nf":
+                print(f"User {their_name} not found.")
+                continue
+            
+            message = input("Enter your message: ").strip()
+            if not message:
+                print("Message cannot be empty.")
+                continue
+            
+            des_key = generate_des_key()
+            print(f"DES Key: {des_key}")  # Debugging untuk melihat kunci DES
 
-# Starting Threads For Listening And Writing
+            encrypted_message = encrypt_text(message, des_key)
+            if not encrypted_message:
+                print("Encryption failed. Check DES key and message.")
+                continue
+
+            signature = rsa_sign(my_privateKey, des_key)
+            rsa_desKey = rsa_encrypt(their_publicKey, des_key)
+            package = do_format(rsa_desKey, encrypted_message, nickname, signature)
+            chat_socket.send(package.encode('utf-8'))
+        except Exception as e:
+            print(f"Error in write function: {e}")
+            break
+
+
+print(register_with_pka(nickname, my_publicKey))
+
 receive_thread = threading.Thread(target=receive)
 receive_thread.start()
 
 write_thread = threading.Thread(target=write)
 write_thread.start()
-
-receive_thread.join()
-write_thread.join()

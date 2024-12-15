@@ -1,112 +1,88 @@
 import random
-import math
+import hashlib
 
-# A set will be the collection of prime numbers,
-# where we can select random primes p and q
+def gcd(a, b):
+    while b != 0:
+        a, b = b, a % b
+    return a
 
-public_key = None
-private_key = None
-n = None
+def mod_inverse(e, phi):
+    def egcd(a, b):
+        if a == 0:
+            return b, 0, 1
+        g, x, y = egcd(b % a, a)
+        return g, y - (b // a) * x, x
 
-# We will run the function only once to fill the set of
-# prime numbers
-def primefiller(prime):
-    # Method used to fill the primes set is Sieve of
-    # Eratosthenes (a method to collect prime numbers)
-    seive = [True] * 250
-    seive[0] = False
-    seive[1] = False
-    for i in range(2, 250):
-        for j in range(i * 2, 250, i):
-            seive[j] = False
+    g, x, _ = egcd(e, phi)
+    if g != 1:
+        raise Exception("Modular inverse does not exist")
+    return x % phi
 
-    # Filling the prime numbers
-    for i in range(len(seive)):
-        if seive[i]:
-            prime.add(i)
-    return prime
+def generate_prime(bits):
+    while True:
+        num = random.getrandbits(bits) | (1 << (bits - 1)) | 1
+        if is_prime(num):
+            return num
 
+def is_prime(n, k=5):
+    if n <= 1:
+        return False
+    if n <= 3:
+        return True
+    if n % 2 == 0:
+        return False
 
-# Picking a random prime number and erasing that prime
-# number from list because p!=q
-def pickrandomprime(prime):
-    k = random.randint(0, len(prime) - 1)
-    it = iter(prime)
+    r, s = 0, n - 1
+    while s % 2 == 0:
+        r += 1
+        s //= 2
+
     for _ in range(k):
-        next(it)
+        a = random.randint(2, n - 1)
+        x = pow(a, s, n)
+        if x == 1 or x == n - 1:
+            continue
+        for _ in range(r - 1):
+            x = pow(x, 2, n)
+            if x == n - 1:
+                break
+        else:
+            return False
+    return True
 
-    ret = next(it)
-    prime.remove(ret)
-    return ret
+def rsa_generate_keys(bits=2048):
+    p = generate_prime(bits // 2)
+    q = generate_prime(bits // 2)
+    n = p * q
+    phi = (p - 1) * (q - 1)
+    e = 65537
+    if gcd(e, phi) != 1:
+        raise Exception("e and phi are not coprime")
+    d = mod_inverse(e, phi)
+    return (e, n), (d, n)
 
+def rsa_encrypt(public_key, plaintext):
+    e, n = public_key
+    plaintext_int = int.from_bytes(plaintext.encode(), 'big')
+    return str(pow(plaintext_int, e, n))
 
-def setkeys(prime):
-    # global public_key, private_key, n
-    prime1 = pickrandomprime(prime)  # First prime number
-    prime2 = pickrandomprime(prime)  # Second prime number
-    print(prime1,prime2)
+def rsa_decrypt(private_key, ciphertext):
+    d, n = private_key
+    ciphertext = int(ciphertext)
+    plaintext_int = pow(ciphertext, d, n)
+    return plaintext_int.to_bytes((plaintext_int.bit_length() + 7) // 8, 'big').decode()
 
-    global n
-    n = prime1 * prime2
-    fi = (prime1 - 1) * (prime2 - 1)
+def hash_function(message):
+    return hashlib.sha256(message.encode()).digest()
 
-    e = 2
-    while True:
-        if math.gcd(e, fi) == 1:
-            break
-        e += 1
+def rsa_sign(private_key, message):
+    d, n = private_key
+    hashed_message = int.from_bytes(hash_function(message), 'big')
+    return str(pow(hashed_message, d, n))
 
-    # d = (k*Φ(n) + 1) / e for some integer k
-    public_key = e
-
-    d = 2
-    while True:
-        if (d * e) % fi == 1:
-            break
-        d += 1
-
-    private_key = d
-    return public_key,private_key
-
-
-# To encrypt the given number
-def encrypt(message,public_key):
-    global n
-    e = public_key
-    encrypted_text = 1
-    while e > 0:
-        encrypted_text *= message
-        encrypted_text %= n
-        e -= 1
-    return encrypted_text
-
-
-# To decrypt the given number
-def decrypt(encrypted_text,private_key):
-    global n
-    d = private_key
-    decrypted = 1
-    while d > 0:
-        decrypted *= encrypted_text
-        decrypted %= n
-        d -= 1
-    return decrypted
-
-
-# First converting each character to its ASCII value and
-# then encoding it then decoding the number to get the
-# ASCII and converting it to character
-def encoder(message,public_key):
-    encoded = []
-    # Calling the encrypting function in encoding function
-    for letter in message:
-        encoded.append(encrypt(ord(letter),public_key))
-    return encoded
-
-
-def decoder(encoded,private_key):
-    s = ''
-    # Calling the decrypting function decoding function
-    for num in (encoded):
-        s += chr(decrypt(num),private_key)
-    return s
+def rsa_verify(public_key, message, signature):
+    e, n = public_key
+    signature = int(signature)
+    decrypted_hash = pow(signature, e, n)
+    original_hash = int.from_bytes(hash_function(message), 'big')
+    return decrypted_hash == original_hash
